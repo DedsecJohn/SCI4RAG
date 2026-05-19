@@ -1,6 +1,6 @@
-from src.LLM_model.chat.api.llm_model import get_chat_model
+from src.llm.chat.api.chat_model import get_chat_model
 from langchain_core.messages import HumanMessage, SystemMessage
-def llm_response(query: str,
+def response(query: str,
                  system_prompt: str = "",
                  temperature: float = 1,
     ) -> str:

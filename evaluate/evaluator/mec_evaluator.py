@@ -2,8 +2,8 @@ import json
 import numpy as np
 import networkx as nx
 from typing import List, Dict, Optional, Any
-from src.LLM_model.chat.api.llm_model import get_chat_model
-from src.LLM_model.embed.api.embed_model import get_embed_model
+from src.llm.chat.api.chat_model import get_chat_model
+from src.llm.embed.api.embed_model import get_embed_model
 
 def cosine_similarity(
     vec1: np.ndarray, 

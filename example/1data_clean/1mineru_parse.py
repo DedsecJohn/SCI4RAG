@@ -1,5 +1,5 @@
 from src.service.document.load_document import load_Batch_PDF_files
-from src.service.document.parse.mineru.api.parser import mineru_parse, mineru_state
+from src.service.parse.mineru.api.parser import mineru_parse, mineru_state
 
 username = "administrator"
 dataset_name = "test"

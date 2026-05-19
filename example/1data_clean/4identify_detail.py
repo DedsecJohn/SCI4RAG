@@ -1,6 +1,6 @@
-from src.service.agent.identify_reference import process_references
-from src.service.agent.identify_figure import process_figures
-from src.service.agent.identify_equation import identify_equation
+from src.service.extractor.reference import process_references
+from src.service.extractor.figure import process_figures
+from src.service.extractor.equation import identify_equation
 from src.service.document.load_document import load_document_metadata
 
 username = "administrator"

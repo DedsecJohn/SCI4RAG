@@ -1,5 +1,5 @@
 from langchain_core.messages import HumanMessage, SystemMessage
-from src.LLM_model.chat.api.llm_model import get_chat_model
+from src.llm.chat.api.chat_model import get_chat_model
 from src.service.embed.vector_store import initialize_vector_store
 from src.service.retrieve.retrieve_vector import retrieve_prompt
 

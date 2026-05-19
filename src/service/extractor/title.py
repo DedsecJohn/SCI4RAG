@@ -1,7 +1,7 @@
 
 from tqdm import tqdm
 from pathlib import Path
-from src.service.agent.article_information import get_reference_info
+from src.service.extractor.doi import get_reference_info
 from src.service.document.load_document import load_json, parse_path_info, updata_document_metadata, save_json
 from src.service.document.clean_markdown import chunk_identify_main_section, chunk_markdown_by_blank_lines, load_markdown
 

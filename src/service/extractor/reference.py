@@ -2,7 +2,7 @@ import re
 from typing import List, Dict
 from tqdm import tqdm
 from pathlib import Path
-from src.service.agent.article_information import get_reference_info
+from src.service.extractor.doi import get_reference_info
 from src.service.document.load_document import load_json, save_json, parse_path_info, updata_document_metadata
 def split_references(reference_text: str, characters: int = 20) -> List[Dict]:
     """

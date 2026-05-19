@@ -1,5 +1,5 @@
 from langchain_chroma import Chroma
-from src.LLM_model.embed.api.embed_model import get_embed_model
+from src.llm.embed.api.embed_model import get_embed_model
 from src.service.document.chunk_document import load_and_chunk_documents
 from src.service.document.load_document import load_document_metadata, updata_document_metadata
 

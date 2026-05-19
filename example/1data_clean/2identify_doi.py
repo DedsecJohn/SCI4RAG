@@ -1,6 +1,6 @@
 from src.service.document.load_document import load_document_metadata
-from src.service.agent.article_information import identify_doi_info, identify_DOI, update_doc_info
-from src.service.agent.identify_title import identify_title
+from src.service.extractor.doi import identify_doi_info, identify_DOI, update_doc_info
+from src.service.extractor.title import identify_title
 
 username = "administrator"
 dataset_name = "test"

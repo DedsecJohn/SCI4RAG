@@ -1,6 +1,6 @@
 import re
 from pathlib import Path
-from src.service.generator.llm_response import llm_response
+from src.llm.chat.response import llm_response
 from src.service.document.load_document import load_json, save_json, parse_path_info, updata_document_metadata
 
 
