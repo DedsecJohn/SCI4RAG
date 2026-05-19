@@ -7,7 +7,8 @@ from glob import glob
 from datetime import datetime
 
 def save_json(data: dict, path: str, indent: int = 2, info = True) -> None:
-    os.makedirs(os.path.dirname(path), exist_ok=True)
+    # os.makedirs(os.path.dirname(path), exist_ok=True)
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=indent, ensure_ascii=False)
     if info:

@@ -159,7 +159,7 @@ def chunk_identify_main_section(
     return response
 
 # 1. First identify main section-> clean_state = "identified_main_section"
-def identify_main_section(file_data: dict, reidentify = False) -> str:
+def identify_main_section(file_data: dict, reidentify = False) -> dict:
     """ 
     Identify main structure which academic paper section the markdown chunks belongs to.
     Args:

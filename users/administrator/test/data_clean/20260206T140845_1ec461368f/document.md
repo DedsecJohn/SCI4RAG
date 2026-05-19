@@ -1,4 +1,4 @@
- ## Pt Schwarz crystals stabilized by minimal-surface grain boundaries and twins at the grain size limit
+## Pt Schwarz crystals stabilized by minimal-surface grain boundaries and twins at the grain size limit
 
 **Author:** Fu, H.L.; Zhou, X.; Gao, Z.P.; Jin, Z.H.; Li, X.Y.; Lu, K.
 

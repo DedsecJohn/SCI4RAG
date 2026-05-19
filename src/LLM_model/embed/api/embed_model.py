@@ -42,3 +42,12 @@ def get_embed_model():
 
 if __name__ == "__main__":
     print(get_embed_model())
+    emb_model = get_embed_model()
+    vec = emb_model.embed_query("What is electromagnetism?")
+    docs = [
+        "A proton has positive charge",
+        "An electron has negative charge"
+    ]
+
+    vecs = emb_model.embed_documents(docs)
+    print(len(vecs))

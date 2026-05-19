@@ -3,14 +3,14 @@
     "method": "api",   
     "name": "deepseek",
     "modelType": "deepseek-chat",
-    "apiKey": "sk-65b285de1caf4751ad30ed94b76a2c47"
+    "apiKey": "sk-f56932af5d754a24aa2c1a541a42e00c"
   },
 
   "embedmodel": {
     "method": "api",
     "name": "aliyun",
     "modelType": "text-embedding-v1",
-    "apiKey": "sk-8d6de96d52bd4370a0500289d5cadcff"
+    "apiKey": "sk-367acab88d9d47ec89d584e5b80519ca"
   },
 
   "mineru": {
