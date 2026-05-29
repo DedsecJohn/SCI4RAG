@@ -6,7 +6,7 @@ class ParseStatus:
     """MinerU PDF parsing status constants."""
     NOT_PARSED = "Not Parsed"
     PROCESSING = "processing"
-    DOWNLOADED = "Download"
+    DOWNLOADED = "Download"    # Result downloaded to local storage
     FAILED = "failed"
 
 
@@ -15,6 +15,7 @@ class DoiStatus:
     NOT_DOI = "Not_DOI"
     DOI_EXTRACTED = "Doi_Getted"
     METADATA_FETCHED = "Doi_Info_Getted"
+    UPDATED = "Doi_Updated"
 
 
 class CleanStatus:

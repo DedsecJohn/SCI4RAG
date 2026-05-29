@@ -3,7 +3,7 @@ from src.core.logger import get_user_logger
 from src.core.paths import *
 from src.llm.embed.api.embed_model import get_embed_model
 from src.service.document.chunk_document import load_and_chunk_documents
-from src.service.document.load_document import load_document_metadata, updata_document_metadata
+from src.service.document.load_document import load_document_metadata, update_document_metadata
 
 def initialize_vector_store(
         username="administrator", 
@@ -67,8 +67,8 @@ def document_embedding(
 
     for file_id, file_data in pdf_files_data.items():
         file_data["vector_status"] = 'done'
-        updata_document_metadata(username, dataset_name, file_data, False)
-    updata_document_metadata(username, dataset_name, file_data, True)
+        update_document_metadata(username, dataset_name, file_data, False)
+    update_document_metadata(username, dataset_name, file_data, True)
 
 
 def check_documents_exist(

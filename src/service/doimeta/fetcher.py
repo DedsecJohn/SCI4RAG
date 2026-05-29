@@ -9,12 +9,14 @@ import re
 import time
 import random
 import requests
+from pathlib import Path
 from typing import Optional
 from src.core.logger import get_logger, get_user_logger
 from src.core.paths import clean_doi_json
-from src.core.utils import save_json
+from src.core.utils import load_json, save_json
 from src.core.states import DoiStatus
-from src.service.document.load_document import parse_path_info, updata_document_metadata
+from src.service.document.load_document import parse_path_info, update_document_metadata
+from src.service.document.delete_document import delete_document
 
 
 # ──────────────────────────────────────────────
@@ -430,25 +432,25 @@ def get_doi_info(doi: str) -> Optional[dict]:
     return to_custom_bibjson(raw, doi)
 
 
-def get_reference_info(reference: str) -> Optional[dict]:
+def get_title_info(title: str) -> Optional[dict]:
     """
-    Get article metadata from reference string.
+    Get article metadata from title string.
 
     Args:
-        reference: Reference string to search for.
+        title: Title string to search for.
 
     Returns:
         dict or None: Article metadata in custom BibJSON format, or None if not found.
     """
     time.sleep(0.5)  # Rate limiting to avoid hitting API limits
-    raw = query_crossref(reference)
+    raw = query_crossref(title)
     if raw is None:
-        get_logger().warning("Reference not found in CrossRef: {ref}", ref=reference[:100])
+        get_logger().warning("Title not found in CrossRef: {title}", title=title[:100])
         return None
     
     doi = raw.get("DOI")
     if not doi:
-        get_logger().warning("No DOI found in CrossRef result for reference: {ref}", ref=reference[:100])
+        get_logger().warning("No DOI found in CrossRef result for title: {title}", title=title[:100])
         return None
     
     bibjson = to_custom_bibjson(raw, doi)
@@ -474,7 +476,7 @@ def fetch_DOI_metadata(file_data: dict) -> dict:
     # ---- Guard: already processed ----
     if file_data["DOI_state"] in {
         DoiStatus.METADATA_FETCHED,
-        DoiStatus.DOCUMENT_UPDATED,
+        DoiStatus.UPDATED
     }:
         logger.info("Already {state}, skip metadata fetch", state=file_data['DOI_state'])
         return file_data
@@ -501,7 +503,7 @@ def fetch_DOI_metadata(file_data: dict) -> dict:
 
         if not file_data.get("doi") or is_empty_doi(file_data["doi"]):
             file_data["DOI_state"] = DoiStatus.NOT_DOI
-            updata_document_metadata(username, dataset_name, file_data, info=False)
+            update_document_metadata(username, dataset_name, file_data, info=False)
             logger.error("DOI not found via title identification in {file_name}",
                             file_name=file_data['file_name'])
             return file_data
@@ -509,14 +511,14 @@ def fetch_DOI_metadata(file_data: dict) -> dict:
         bibjson = get_doi_info(file_data["doi"])
         if bibjson is None:
             file_data["DOI_state"] = DoiStatus.NOT_DOI
-            updata_document_metadata(username, dataset_name, file_data, info=False)
+            update_document_metadata(username, dataset_name, file_data, info=False)
             logger.error("Title-identified DOI also invalid: {doi}",
                             doi=file_data['doi'])
             return file_data
 
     save_json(bibjson, doi_path)
     file_data["DOI_state"] = DoiStatus.METADATA_FETCHED
-    updata_document_metadata(username, dataset_name, file_data, info=False)
+    update_document_metadata(username, dataset_name, file_data, info=False)
 
     return file_data
 
@@ -536,3 +538,69 @@ def is_empty_doi(doi) -> bool:
         bool: True if DOI is empty/invalid, False otherwise.
     """
     return doi in (None, "", "null", "Null", "NULL")
+
+# ──────────────────────────────────────────────
+# 8. update_doc_info
+# ──────────────────────────────────────────────
+
+def update_doc_info(file_data: dict) -> None:
+    """
+    Rename the PDF file based on the title from doi.json and update metadata.
+
+    Operates only on the given file_data; does not touch other documents.
+
+    Args:
+        file_data: File metadata. See `FileData` (src/core/states.py)
+
+    Returns:
+        None
+    """
+    username, dataset_name = parse_path_info(file_data["file_path"])
+    logger = get_user_logger(username, dataset_name)
+
+    # ---- guard: only METADATA_FETCHED files ----
+    if file_data.get("DOI_state") != DoiStatus.METADATA_FETCHED:
+        return
+
+    # ---- load title from doi.json ----
+    doi_path = clean_doi_json(username, dataset_name, file_data["file_id"])
+    doi_data = load_json(doi_path)
+    raw_title = doi_data.get("title")
+    if not raw_title:
+        logger.warning("No title in doi.json for {name}", name=file_data["file_name"])
+        return
+
+    # ---- sanitise title for use as filename ----
+    title = re.sub(r'[<>:"/\\|?*]', '_', raw_title)
+    title = re.sub(r'\s+', ' ', title).strip()[:200]
+
+    # ---- rename PDF ----
+    old_pdf = Path(file_data["file_path"])
+    if not old_pdf.exists():
+        logger.warning("PDF not found: {path}", path=old_pdf)
+        return
+
+    new_pdf = old_pdf.with_stem(title)
+    if old_pdf == new_pdf:
+        file_data["DOI_state"] = DoiStatus.UPDATED
+        update_document_metadata(username, dataset_name, file_data, info=False)
+        return
+
+    if new_pdf.exists():
+        logger.warning("Duplicate title, removing file: {path}", path=old_pdf)
+        delete_document(file_data)
+        return
+
+    try:
+        old_pdf.rename(new_pdf)
+    except OSError as e:
+        logger.error("Rename failed: {error}", error=str(e))
+        return
+
+    # ---- update metadata ----
+    file_data["file_name"] = title
+    file_data["file_path"] = str(new_pdf)
+    file_data["DOI_state"] = DoiStatus.UPDATED
+    update_document_metadata(username, dataset_name, file_data, info=False)
+
+    logger.info("Renamed PDF: {old} → {new}", old=old_pdf.name, new=new_pdf.name)

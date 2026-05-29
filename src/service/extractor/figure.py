@@ -3,7 +3,7 @@ from pathlib import Path
 from src.core.paths import *
 from src.core.utils import load_json, save_json
 from src.llm.chat.response import llm_response
-from src.service.document.load_document import parse_path_info, updata_document_metadata
+from src.service.document.load_document import parse_path_info, update_document_metadata
 
 FIG_PATTERN = re.compile(
     r'^(fig|figure)\s*\.?\s*\d+\b',
@@ -144,11 +144,11 @@ def process_figures(file_data: dict, reidentify = False)->dict:
 
     if figures_pairs:
         file_data["figure_state"] = 'done' 
-        updata_document_metadata(username, dataset_name, file_data, info=False)
+        update_document_metadata(username, dataset_name, file_data, info=False)
         save_json(figures_pairs, figures_path)
     else:
         file_data["figure_state"] = 'Not_Found'
-        updata_document_metadata(username, dataset_name, file_data, info=False)
+        update_document_metadata(username, dataset_name, file_data, info=False)
     return file_data
     
                 

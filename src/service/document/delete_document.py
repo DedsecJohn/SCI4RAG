@@ -13,28 +13,40 @@ from src.core.paths import (
 from src.core.utils import load_json, save_json
 from src.service.document.load_document import load_document_metadata
 
-def delete_file(file_data: dict) -> None:
+def delete_document(file_data: dict) -> None:
     """
-    Delete a file.    
+    Fully delete a document: PDF, parse dir, clean dir, and metadata entry.
 
     Args:
         file_data: File metadata. See `FileData` (src/core/states.py)
+
+    Returns:
+        None
     """
-    file_path = Path(file_data["file_path"])
     username, dataset_name = parse_path_info(file_data["file_path"])
     file_id = file_data.get("file_id")
+    logger = get_user_logger(username, dataset_name)
 
-    # 1. delete file_data["file_path"]
+    # 1. delete physical files: PDF, parse dir, clean dir
+    file_path = Path(file_data["file_path"])
     if file_path.exists():
         file_path.unlink()
-    # 2. delete username/dataset_name/parse/file_data["file_id"]
+
     parse_folder = parse_dir(username, dataset_name, file_id)
     if parse_folder.exists():
-        shutil.rmtree(parse_folder, ignore_errors=True)    
-    # 3. delete username/dataset_name/data_clean/file_data["file_id"]
+        shutil.rmtree(parse_folder, ignore_errors=True)
+
     clean_folder = clean_dir(username, dataset_name, file_id)
     if clean_folder.exists():
         shutil.rmtree(clean_folder, ignore_errors=True)
+
+    # 2. remove metadata entry from documents.json
+    json_path = documents_json(username, dataset_name)
+    all_meta = load_json(json_path)
+    all_meta.pop(file_id, None)
+    save_json(all_meta, json_path, info=False)
+
+    logger.info("Deleted document: {name} ({id})", name=file_data["file_name"], id=file_id)
 
 def delete_none_dir(username: str, dataset_name: str) -> None:
     """

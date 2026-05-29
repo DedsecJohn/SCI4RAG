@@ -1,7 +1,7 @@
 import re
 from pathlib import Path
 from src.llm.chat.response import llm_response
-from src.service.document.load_document import load_json, save_json, parse_path_info, updata_document_metadata
+from src.service.document.load_document import load_json, save_json, parse_path_info, update_document_metadata
 
 
 def generate_keyword_kg_article(

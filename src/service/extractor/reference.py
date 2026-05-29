@@ -4,22 +4,22 @@ from tqdm import tqdm
 from pathlib import Path
 from src.core.paths import *
 from src.core.utils import load_json, save_json
-from src.service.doimeta.fetcher import get_reference_info
-from src.service.document.load_document import parse_path_info, updata_document_metadata
-def split_references(reference_text: str, characters: int = 20) -> List[Dict]:
+from src.service.doimeta.fetcher import get_title_info
+from src.service.document.load_document import parse_path_info, update_document_metadata
+def split_references(reference_text: str, characters: int = 20) -> List[str]:
     """
     Split a reference block into individual references.
     Supports numbering styles:
         [1] ... , (1) ... , 1. ...
 
-    Only keeps references with at least `min_words` words.
+    Only keeps references with at least `characters` characters.
 
     Args:
         reference_text (str): Raw reference text.
-        min_words (int): Minimum words to keep a reference.
+        characters (int): Minimum characters to keep a reference.
 
     Returns:
-        List[Dict]: [{"ref_id": int, "content": str}, ...]
+        List[str]: Clean reference content strings.
     """
     if not reference_text:
         return []
@@ -42,10 +42,11 @@ def split_references(reference_text: str, characters: int = 20) -> List[Dict]:
     reference_text = re.sub(r'\$.*?\$', '', reference_text)
 
     # Ensure numbering starts on new line (fix inline 5. 6.)
-    reference_text = re.sub(r'\s+(\d+\.)', r'\n\1', reference_text)
+    reference_text = re.sub(r'\s+(\d{1,3}\.)', r'\n\1', reference_text)
 
-    # Unified split rule
-    split_pattern = r'(?=\[\d+\]|\(\d+\)|\d+\.)'
+    # Unified split rule, anchored to line start to avoid splitting at
+    # years like (2020) or numbers like 127. inside reference content
+    split_pattern = r'(?:(?<=\n)|(?<=^))(?=\[\d+\]|\(\d+\)|\d{1,3}\.)'
     parts = re.split(split_pattern, reference_text)
 
     references = []
@@ -58,7 +59,7 @@ def split_references(reference_text: str, characters: int = 20) -> List[Dict]:
         match = re.match(
             r'^\[(\d+)\]\s*(.*)|'
             r'^\((\d+)\)\s*(.*)|'
-            r'^(\d+)\.\s*(.*)',
+            r'^(\d{1,3})\.\s*(.*)',
             part,
             re.DOTALL
         )
@@ -69,24 +70,21 @@ def split_references(reference_text: str, characters: int = 20) -> List[Dict]:
         groups = match.groups()
 
         if groups[0]:          # [1]
-            ref_id = groups[0]
             content = groups[1]
         elif groups[2]:        # (1)
-            ref_id = groups[2]
             content = groups[3]
         else:                  # 1.
-            ref_id = groups[4]
             content = groups[5]
 
         content_clean = content.strip()
 
-        # Only keep if number of words > min_words
         if len(content_clean) >= characters:
             references.append(content_clean)
 
     return references
 
-def process_references(file_data: dict, reidentify = False) -> List[Dict]:
+
+def process_references(file_data: dict, reidentify = False) -> dict:
     """
     Process references for a given file.
 
@@ -94,7 +92,7 @@ def process_references(file_data: dict, reidentify = False) -> List[Dict]:
         file_data (dict): The metadata of the file.
 
     Returns:
-        List[Dict]: The processed references.
+        dict: Updated file_data.
     """
     if reidentify == False:
         if "reference_state" not in file_data:
@@ -130,18 +128,18 @@ def process_references(file_data: dict, reidentify = False) -> List[Dict]:
         bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]"
     ) as pbar:
         for ref in raw_references:
-            ref_info = get_reference_info(ref)
+            ref_info = get_title_info(ref)
             # doi = ref_info.get("doi", ref)  # fallback to raw ref if DOI missing
             processed_references[ref] = ref_info
             pbar.update(1)
 
     if processed_references:
         file_data["reference_state"] = 'done' 
-        updata_document_metadata(username, dataset_name, file_data, info=False)
+        update_document_metadata(username, dataset_name, file_data, info=False)
         save_json(processed_references, references_path)
     else:
         file_data["reference_state"] = 'Not_Found'
-        updata_document_metadata(username, dataset_name, file_data, info=False)
+        update_document_metadata(username, dataset_name, file_data, info=False)
     return file_data
 
 
@@ -152,37 +150,50 @@ REF_HEADER = re.compile(
 
 REF_ENTRY = re.compile(r'^(?:\[\d+\]|\(\d+\)|\d+\.)\s+')
 
-SECTION_HEADER = re.compile(r'^#\s+\w+')
+
+
+
+def _has_multiple_refs(chunk: str, min_count: int = 3) -> bool:
+    """
+    Check if chunk contains multiple reference entries across multiple lines.
+
+    Detects [N] entries at line start (with optional leading symbols like *, †, ‡).
+    Requires entries to be on separate lines to distinguish from body paragraphs
+    that contain inline citation markers like [1][2].
+
+    Args:
+        chunk (str): Markdown chunk text.
+        min_count (int): Minimum number of reference entries.
+
+    Returns:
+        bool: True if chunk contains >= min_count [N] entries on separate lines.
+    """
+    pattern = r'^\s*[\*†‡§¶#]*\s*\[\d+\]\s+'
+    matches = re.findall(pattern, chunk, re.MULTILINE)
+    if len(matches) < min_count:
+        return False
+    return chunk.count('\n') >= min_count - 1
 
 
 def identify_references(chunk: str) -> bool:
     """
-    Check if a markdown chunk is a numbered reference entry.
+    Check if a markdown chunk is a reference section.
+
+    Detection priority:
+    1. REF_HEADER: chunk starts with "# References" / "# Bibliography"
+    2. REF_ENTRY: chunk starts with [N], (N), or N. numbering
+    3. _has_multiple_refs: chunk contains >=3 [N] entries on separate lines
+       (noise-tolerant: allows leading symbols like *, †, ‡ before the first entry)
 
     Args:
         chunk (str): Markdown chunk text.
 
     Returns:
-        bool: True if chunk starts with [N], (N), or N. numbering.
+        bool: True if the chunk is identified as a reference section.
     """
-    return bool(REF_ENTRY.match(chunk))
+    if REF_HEADER.match(chunk):
+        return True
+    if REF_ENTRY.match(chunk):
+        return True
+    return _has_multiple_refs(chunk)
 
-
-def has_multiple_references(chunk: str, min_count: int = 3) -> bool:
-    """
-    Check if chunk contains multiple reference entries.
-
-    Useful for detecting reference sections that have noise at the beginning
-    (e.g., email addresses, symbols) before the actual reference list.
-
-    Args:
-        chunk (str): Markdown chunk text.
-        min_count (int): Minimum number of reference entries to consider as references section.
-
-    Returns:
-        bool: True if chunk contains >= min_count reference entries in [N] format.
-    """
-    # Pattern: [N] at line start (after optional whitespace/symbols like *, †, ‡)
-    pattern = r'^\s*[\*†‡§¶#]*\s*\[\d+\]\s+'
-    matches = re.findall(pattern, chunk, re.MULTILINE)
-    return len(matches) >= min_count

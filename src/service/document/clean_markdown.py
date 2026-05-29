@@ -2,11 +2,14 @@ import difflib
 import os
 import re
 from tqdm import tqdm
+
+SECTION_HEADER = re.compile(r'^#\s+\w+')
+
 from pathlib import Path
 from src.core.logger import get_user_logger
 from src.core.states import CleanStatus, DoiStatus
 from src.llm.chat.response import llm_response
-from src.service.document.load_document import parse_path_info, updata_document_metadata
+from src.service.document.load_document import parse_path_info, update_document_metadata
 from src.core.utils import load_json, save_json
 from src.core.paths import (
     parse_full_md, clean_dir, clean_label_structure_json,
@@ -154,26 +157,13 @@ def identify_main_section(file_data: dict) -> dict:
 
     chunks = chunks[title_idx:]
 
-    from src.service.extractor.reference import identify_references, has_multiple_references, REF_HEADER, SECTION_HEADER
+    from src.service.extractor.reference import identify_references
 
     ref_start = None
     for i, chunk in enumerate(chunks):
-        if REF_HEADER.match(chunk):
+        if identify_references(chunk):
             ref_start = i
             break
-
-    if ref_start is None:
-        for i in range(5, len(chunks)):
-            if identify_references(chunks[i]):
-                ref_start = i
-                break
-    
-    # Additional check: detect chunks with multiple reference entries (even with noise at start)
-    if ref_start is None:
-        for i, chunk in enumerate(chunks):
-            if has_multiple_references(chunk):
-                ref_start = i
-                break
 
     ref_end = len(chunks)
     if ref_start is not None:
@@ -193,7 +183,7 @@ def identify_main_section(file_data: dict) -> dict:
         label_structure.append({"category": cat, "content": chunk})
 
     out_path = clean_label_structure_json(username, dataset_name, file_data['file_id'])
-    save_json(label_structure, out_path)
+    save_json(label_structure, out_path, info=False)
     logger.info("Saved label_structure.json with {} chunks", len(label_structure))
 
     return file_data
@@ -232,7 +222,7 @@ def identify_detail(file_data: dict) -> dict:
 
     with tqdm(
         total=len(label_structure),
-        desc=f"Identifying detail [{metadata.get("bibkey", "unknown")}]",
+        desc=f"Identifying detail [{metadata.get('bibkey', 'unknown')}]",
         unit="chunk",
         ncols=100,
         position=0,
@@ -295,9 +285,8 @@ def identify_detail(file_data: dict) -> dict:
                 item["category"] = "main_letter"
 
             pbar.update(1)
-
-    save_json(label_structure, label_path)
     logger.info("Saved label_structure.json with detail categories identified")
+    save_json(label_structure, label_path, info=True)
     return file_data
 
 
@@ -438,9 +427,10 @@ def combine_label_structure(file_data: dict) -> dict:
     flush_stage2()
 
     new_label_path = clean_label_cleaned_json(username, dataset_name, file_data['file_id'])
+    logger.info("Saving final cleaned label_structure.json with {} chunks", len(final_result))
     save_json(final_result, new_label_path)
     # file_data["clean_state"] = CleanStatus.COMPLETED
-    # updata_document_metadata(username, dataset_name, file_data)
+    # update_document_metadata(username, dataset_name, file_data)
     return file_data
 
 

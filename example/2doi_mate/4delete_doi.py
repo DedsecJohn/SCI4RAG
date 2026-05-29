@@ -5,7 +5,7 @@ username = "administrator"
 dataset_name = "leiting"
 
 # Step 1: Get Doi and Doi Information
-# Run:  python -m example.2doi_mate.3delete_doi
+# Run:  python -m example.2doi_mate.4delete_doi
 
 # 1.Load documents Information
 pdf_files_data = load_document_metadata(username, dataset_name)

@@ -5,7 +5,7 @@ import shutil
 from src.core.paths import parse_dir, parse_path_info
 from src.core.states import ParseStatus
 from src.core.logger import get_user_logger
-from src.service.document.load_document import updata_document_metadata, load_document_metadata
+from src.service.document.load_document import update_document_metadata, load_document_metadata
 
 
 def delete_parse(file_data):
@@ -34,7 +34,7 @@ def delete_parse(file_data):
     metadata = load_document_metadata(username, dataset_name).get(file_id, file_data)
     metadata["parsing_status"] = ParseStatus.NOT_PARSED
     metadata["batch_id"] = None
-    updata_document_metadata(username, dataset_name, metadata, info=False)
+    update_document_metadata(username, dataset_name, metadata, info=False)
 
     logger.info("Reset parsing status for {name}", name=file_data['file_name'])
     return 1

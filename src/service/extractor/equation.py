@@ -4,7 +4,7 @@ from pathlib import Path
 from src.core.paths import *
 from src.core.utils import load_json, save_json
 from src.llm.chat.response import llm_response
-from src.service.document.load_document import parse_path_info, updata_document_metadata
+from src.service.document.load_document import parse_path_info, update_document_metadata
 
 
 def identify_equation(chunk: str) -> bool:
@@ -255,9 +255,9 @@ def process_equations(
     # ---------- save ----------
     if equation_pairs:
         file_data["equation_state"] = 'done' 
-        updata_document_metadata(username, dataset_name, file_data, info=False)
+        update_document_metadata(username, dataset_name, file_data, info=False)
         save_json(equation_pairs, equation_path) 
     else:
         file_data["equation_state"] = 'Not_Found'
-        updata_document_metadata(username, dataset_name, file_data, info=False) 
+        update_document_metadata(username, dataset_name, file_data, info=False) 
     return file_data

@@ -79,7 +79,7 @@ def should_skip_main_letter_check(chunk: str) -> tuple[bool, str]:
         return True, "too_short"
 
     # Contains obvious metadata markers
-    if re.search(r'(?i)(DOI|doi\.org|email:|@|received.*accepted|published)', chunk):
+    if re.search(r'(?i)(\bDOI\b|doi\.org|email:|@)', chunk):
         return True, "metadata"
 
     # Pure equation block

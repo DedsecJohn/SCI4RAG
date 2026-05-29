@@ -12,7 +12,7 @@ from src.core.paths import (
 )
 from src.core.states import ParseStatus, CleanStatus
 from src.service.document.load_document import (
-    updata_document_metadata, load_document_metadata, parse_path_info
+    update_document_metadata, load_document_metadata, parse_path_info
 )
 
 
@@ -119,7 +119,7 @@ def mineru_parse(file_data):
                         metadata = file_data.copy()
                         metadata["parsing_status"] = ParseStatus.PROCESSING
                         metadata["batch_id"] = batch_id
-                        updata_document_metadata(username, dataset_name, metadata, info=False)
+                        update_document_metadata(username, dataset_name, metadata, info=False)
                         return 1
                     else:
                         logger.error(
@@ -267,8 +267,7 @@ def mineru_state(file_data):
 
                 # Update status to Download
                 metadata["parsing_status"] = ParseStatus.DOWNLOADED
-                metadata["clean_state"] = CleanStatus.PARSED
-                updata_document_metadata(username, dataset_name, metadata, info=False)
+                update_document_metadata(username, dataset_name, metadata, info=False)
                 return 1
                 
             except zipfile.BadZipFile:
@@ -287,7 +286,7 @@ def mineru_state(file_data):
                 return -1
         else:
             # Status not done yet, just update metadata
-            updata_document_metadata(username, dataset_name, metadata)
+            update_document_metadata(username, dataset_name, metadata)
             return 0
 
     except requests.RequestException:
@@ -322,6 +321,13 @@ def parse_doc(file_data, poll_interval=15, poll_timeout=3600):
     """
     username, dataset_name = parse_path_info(file_data["file_path"])
     logger = get_user_logger(username, dataset_name)
+    if file_data.get("parsing_status") == ParseStatus.DOWNLOADED:
+        logger.info(
+            "File already parsed and downloaded: {name}",
+            name=file_data['file_name']
+        )
+        return 1
+
     logger.info("Start parsing: {name}", name=file_data['file_name'])
 
     # Step 1: Upload — mineru_parse handles state check internally

@@ -3,7 +3,7 @@ from pathlib import Path
 from src.core.paths import *
 from src.core.utils import load_json, save_json
 from src.llm.chat.response import llm_response
-from src.service.document.load_document import parse_path_info, updata_document_metadata
+from src.service.document.load_document import parse_path_info, update_document_metadata
 
 def check_keywords(
         content: str, 

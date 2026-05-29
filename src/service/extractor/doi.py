@@ -3,7 +3,7 @@ from src.core.logger import get_user_logger
 from src.core.paths import parse_layout_json
 from src.core.utils import load_json
 from src.core.states import DoiStatus
-from src.service.document.load_document import parse_path_info, updata_document_metadata
+from src.service.document.load_document import parse_path_info, update_document_metadata
 from src.service.extractor.title import identify_title
 
 DOI_PATTERN = re.compile(
@@ -71,13 +71,13 @@ def identify_DOI(file_data: dict) -> dict:
     file_data["doi"] = doi
     if doi:
         file_data["DOI_state"] = DoiStatus.DOI_EXTRACTED
-        updata_document_metadata(username, dataset_name, file_data, info=False)
+        update_document_metadata(username, dataset_name, file_data, info=False)
     else:
         logger.info("DOI not found in layout, trying title identification...")
         file_data = identify_title(file_data)
         if not file_data.get("doi"):
             file_data["DOI_state"] = DoiStatus.NOT_DOI
-            updata_document_metadata(username, dataset_name, file_data)
+            update_document_metadata(username, dataset_name, file_data)
             logger.error("DOI not found via title identification in {file_name}", file_name=file_data['file_name'])
     
     return file_data
