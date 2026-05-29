@@ -1,5 +1,6 @@
+from src.core.paths import *
+from src.core.utils import load_json, save_json
 from evaluate.pipline_evaluator import Evaluator_Pipeline, EVALUATOR_NAME_MAP, get_evaluator_name, get_pipeline_name
-from src.service.document.load_document import load_json, save_json
 from src.pipline.simple_pipeline import SimplePipeline
 from src.pipline.rag_pipeline import RAGPipeline
 from src.pipline.web_pipeline import WebPipeline
@@ -11,7 +12,7 @@ dataset_name = "test"
 benchmark = 'test'
 
 # load evaluator result
-evaluator_path =  f"evaluate/evaluator_result_{benchmark}.json"
+evaluator_path = evaluate_result(benchmark)
 evaluator_result = load_json(evaluator_path)
 
 # 1. SimplePipeline

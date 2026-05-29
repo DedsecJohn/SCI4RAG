@@ -1,4 +1,6 @@
 from langchain_chroma import Chroma
+from src.core.logger import get_user_logger
+from src.core.paths import *
 from src.llm.embed.api.embed_model import get_embed_model
 from src.service.document.chunk_document import load_and_chunk_documents
 from src.service.document.load_document import load_document_metadata, updata_document_metadata
@@ -20,7 +22,7 @@ def initialize_vector_store(
     vector_store = Chroma(
         collection_name=dataset_name,
         embedding_function=get_embed_model(),
-        persist_directory=f"users/{username}/{dataset_name}/vector",
+        persist_directory=str(vector_dir(username, dataset_name)),
     )
     return vector_store
 
@@ -45,18 +47,20 @@ def document_embedding(
     Returns:
         None
     """
+
+    logger = get_user_logger(username, dataset_name)
+
     pdf_files_data = load_document_metadata(username, dataset_name)
 
     pdf_files_sources = [
-        f"users/{username}/{dataset_name}/data_clean/{file_id}/document.md"
+        str(clean_document_md(username, dataset_name, file_id))
         for file_id, file_data in pdf_files_data.items()
         if not file_data.get("vector_status")
     ]
 
     if not pdf_files_sources: 
-        print("[INFO] No documents to embed")
+        logger.info("No documents to embed")
         return
-    
     all_splits = load_and_chunk_documents(pdf_files_sources)
     vector_store = initialize_vector_store(username, dataset_name)
     add_documents_vector(vector_store, all_splits)

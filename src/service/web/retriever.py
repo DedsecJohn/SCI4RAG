@@ -1,26 +1,51 @@
-import json
-from pathlib import Path
+"""
+Web search retriever - Loads configuration from config.py
+"""
 from serpapi import GoogleSearch
 from ddgs import DDGS
 from langchain_core.messages import SystemMessage
+from src.core.config import config
 
-BASE_DIR = Path(__file__).resolve().parent
-DATA_FILE = BASE_DIR / "api_key"
 
-def load_api_key(model="Google"):
-    with open(DATA_FILE, "r", encoding="utf-8") as f:
-        data = json.load(f)
+def get_google_api_key():
+    """
+    Get Google Search API key from config
+    
+    Raises:
+        ValueError: If Google API key is not configured
+    """
+    web_cfg = config.get_web_search_config()
+    api_keys = web_cfg.get('api_keys', {})
+    
+    if 'google' not in api_keys:
+        raise ValueError(
+            "Google Search API key is not configured. "
+            "Please add GOOGLE_SEARCH_API_KEY to your .env file."
+        )
+    
+    return api_keys['google']
 
-    if model not in data:
-        raise KeyError(f"API key for '{model}' not found")
-
-    return data[model]
 
 def get_web_Google(query, result=10):
+    """
+    Search using Google Search API
+    
+    Args:
+        query: Search query string
+        result: Number of results to return
+        
+    Returns:
+        Formatted search results or error message
+    """
+    try:
+        api_key = get_google_api_key()
+    except ValueError as e:
+        return f"Google Search Error: {str(e)}"
+    
     params = {
         "q": query,
         "num": result,
-        "api_key": load_api_key(model="Google"),
+        "api_key": api_key,
     }
 
     search = GoogleSearch(params)
@@ -38,8 +63,19 @@ def get_web_Google(query, result=10):
 
     return "\n".join(prompt_parts)
 
+
 def get_web_DDGS(query, results=5):
-    results = DDGS().text(query, max_results = results)
+    """
+    Search using DuckDuckGo (no API key required)
+    
+    Args:
+        query: Search query string
+        results: Number of results to return
+        
+    Returns:
+        Formatted search results or error message
+    """
+    results = DDGS().text(query, max_results=results)
     prompt_parts = [f"Search results for: '{query}'"]
     count = 0
     for r in results:
@@ -53,7 +89,8 @@ def get_web_DDGS(query, results=5):
     if count > 0:
         return "\n".join(prompt_parts)
     else: 
-        return "Can't find in the wed DDGS"
+        return "Can't find in the web DDGS"
+
 
 # Dispatch map for web search methods
 web_search_map = {
@@ -62,7 +99,7 @@ web_search_map = {
     # Add more methods here if needed
 }
 
-# Unified web search getter
+
 def get_web_message(
         query, 
         results=5, 
@@ -70,8 +107,8 @@ def get_web_message(
         method=None
         ):
     """
-    web search getter
-
+    Web search getter with fallback support
+    
     Args:
         query (str): The query to search for.
         results (int, optional): The number of results to retrieve. Defaults to 5.
@@ -95,14 +132,21 @@ def get_web_message(
 
         return f"Failed to fetch results after {max_retries} attempts using {method}."
     
-    # --- If no method specified: try all search engines ---
+    # --- If no method specified: try all search engines in order from config ---
     else:
-        for name, search_func in web_search_map.items():
+        web_cfg = config.get_web_search_config()
+        providers = web_cfg.get('providers', ['ddgs', 'google'])
+        
+        for provider in providers:
+            if provider not in web_search_map:
+                continue
+                
+            search_func = web_search_map[provider]
             for attempt in range(max_retries):
                 try:
                     result = search_func(query, results)
 
-                    if result and "Can't find" not in result:
+                    if result and "Can't find" not in result and "Error" not in result:
                         return result
 
                 except Exception:
@@ -110,11 +154,12 @@ def get_web_message(
 
         return "Failed to fetch results from all available web search methods."
 
+
 def web_prompt(
         query, 
-        max_results = 5, 
-        max_retries = 3,
-        method = 'Google'
+        max_results=5, 
+        max_retries=3,
+        method='Google'
         ):
     """Construct a ChatPromptTemplate using retrieved context."""
     context = get_web_message(query, max_results, max_retries, method)
@@ -133,5 +178,5 @@ def web_prompt(
 
 if __name__ == "__main__":    
     # print(get_web_Google('LLM'))
-    msg =  get_web_message('what is LLM', method='ddgs')
+    msg = get_web_message('what is LLM', method='ddgs')
     print(msg)

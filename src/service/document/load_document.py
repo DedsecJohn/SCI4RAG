@@ -5,28 +5,21 @@ import shutil
 from pathlib import Path
 from glob import glob
 from datetime import datetime
+from src.core.logger import get_logger, get_user_logger
+from src.core.paths import (
+    documents_json, documents_dir, parse_dir, clean_dir,
+    parse_path_info
+)
+from src.core.utils import load_json, save_json
+from src.core.states import FileData
+from dataclasses import asdict
 
-def save_json(data: dict, path: str, indent: int = 2, info = True) -> None:
-    # os.makedirs(os.path.dirname(path), exist_ok=True)
-    Path(path).parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, indent=indent, ensure_ascii=False)
-    if info:
-        print(f"JSON saved to: {path}")
 
-def load_json(path: str) -> dict:
-    """Load JSON file, return empty dict if not exists."""
-    if not os.path.exists(path):
-        return {}
-    with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
-      
 def load_document_metadata(username: str, dataset_name: str) -> dict:
     """
     Load the documents.json metadata file for a given user and dataset.
     """
-    json_path = f"users/{username}/{dataset_name}/documents.json"
-    return load_json(json_path)
+    return load_json(documents_json(username, dataset_name))
 
 def updata_document_metadata(username: str, dataset_name: str, metadata: dict, info = True) -> None:
     """
@@ -41,33 +34,11 @@ def updata_document_metadata(username: str, dataset_name: str, metadata: dict, i
     Returns:
         None
     """
-    json_path = Path(f"users/{username}/{dataset_name}/documents.json")
+    json_path = documents_json(username, dataset_name)
     doc_info = load_json(json_path)
     doc_info[metadata["file_id"]] = metadata
     doc_info[metadata["file_id"]]["update_time"] = datetime.now().strftime("%a, %d %b %Y %H:%M")
     save_json(doc_info, json_path, info=info)
-
-def parse_path_info(file_path: str):
-    """
-    Given a file path like:
-    users\administrator\schwarz\documents\file.pdf
-    Return (username, dataset_name)
-
-    Args:
-        file_path (str): The path to the file.
-
-    Returns:
-        tuple: (username, dataset_name)
-    """
-    parts = os.path.normpath(file_path).split(os.sep)
-
-    # Expect format: users/<username>/<dataset>/documents/<filename>
-    if len(parts) < 5 or parts[0] != "users" or parts[-2] != "documents":
-        raise ValueError(f"Unexpected path format: {file_path}")
-
-    username = parts[1]
-    dataset_name = parts[2]
-    return username, dataset_name
 
 def load_PDF_file(username: str, dataset_name: str, file_path: str) -> dict:
     """
@@ -81,10 +52,14 @@ def load_PDF_file(username: str, dataset_name: str, file_path: str) -> dict:
     Returns:
         dict: The metadata of the PDF file.
     """
+    logger = get_user_logger(username, dataset_name)
+
     if not os.path.exists(file_path):
+        logger.error("PDF file not found: {path}", path=file_path)
         raise FileNotFoundError(f"PDF file not found: {file_path}")
 
     if not file_path.lower().endswith(".pdf"):
+        logger.error("File is not a PDF: {path}", path=file_path)
         raise ValueError(f"File is not a PDF: {file_path}")
 
     update_time = datetime.now().strftime("%a, %d %b %Y %H:%M")
@@ -92,89 +67,117 @@ def load_PDF_file(username: str, dataset_name: str, file_path: str) -> dict:
     file_name = os.path.splitext(os.path.basename(file_path))[0]
     file_size = os.path.getsize(file_path)
 
-    file_meta = {
-        "file_name": file_name,
-        "file_type": "pdf",
-        "file_path": file_path,
-        "file_id": file_id,
-        "file_size": file_size,
-        "update_time": update_time,
-        "parsing_status": "Not Parsed"  
-    }
+    file_meta = asdict(FileData(
+        file_id=file_id,
+        file_name=file_name,
+        file_type="pdf",
+        file_path=file_path,
+        file_size=file_size,
+        update_time=update_time,
+    ))
 
-    json_path = f"users/{username}/{dataset_name}/documents.json"
+    json_path = documents_json(username, dataset_name)
     doc_info = load_json(json_path)
 
     # Check duplicate (same name + same size)
     for fid, meta in doc_info.items():
         if meta["file_name"] == file_name and meta["file_size"] == file_size:
-            print(f"File already exists, skip: {file_name}")
+            logger.info("File already exists, skip: {name}", name=file_name)
             return meta
 
     # New file or updated file
     doc_info[file_id] = file_meta
     save_json(doc_info, json_path)
 
-    print(f"Registered PDF: {file_name}")
+    logger.info("Registered PDF: {name}", name=file_name)
     return file_meta
 
-def load_Batch_PDF_files(username: str, dataset_name: str) -> dict:
+def register_new_pdfs(username: str, dataset_name: str) -> int:
     """
-    Load all PDF files under users/<username>/<dataset_name>/documents
+    Scan the documents directory and register new PDF files into documents.json.
+    Skips files already registered (matching by name + size).
+    Uses batch read/write: loads documents.json once, adds all new files, saves once.
 
     Args:
         username (str): The username of the user.
         dataset_name (str): The name of the dataset.
 
     Returns:
-        dict: The metadata of all PDF files.
+        int: Number of newly registered files.
     """
-    pdf_dir = os.path.join("users", username, dataset_name, "documents")
-    pdf_files = glob(os.path.join(pdf_dir, "*.pdf"))
+    logger = get_user_logger(username, dataset_name)
+    pdf_dir = documents_dir(username, dataset_name)
+    pdf_files = sorted(glob(str(pdf_dir / "*.pdf")))
 
     if not pdf_files:
-        raise FileNotFoundError(f"No PDF files found in {pdf_dir}")
+        logger.info("No PDF files found in {dir}", dir=pdf_dir)
+        return 0
 
-    print(f"Path: {pdf_dir}, Found {len(pdf_files)} PDF files.")
+    # Batch: load documents.json once
+    json_path = documents_json(username, dataset_name)
+    doc_info = load_json(json_path) if json_path.exists() else {}
 
-    for pdf in pdf_files:
-        load_PDF_file(username, dataset_name, pdf)
+    # Batch: create metadata for new files
+    update_time = datetime.now().strftime("%a, %d %b %Y %H:%M")
+    new_count = 0
 
-    return load_json(f"users/{username}/{dataset_name}/documents.json")
+    for pdf_path in pdf_files:
+        file_name = os.path.splitext(os.path.basename(pdf_path))[0]
+        file_size = os.path.getsize(pdf_path)
+
+        # Check duplicate (same name + same size)
+        is_duplicate = any(
+            meta["file_name"] == file_name and meta["file_size"] == file_size
+            for meta in doc_info.values()
+        )
+        if is_duplicate:
+            continue
+
+        file_id = (
+            f"{datetime.now().strftime('%Y%m%dT%H%M%S')}_"
+            f"{secrets.token_hex(5)}"
+        )
+
+        doc_info[file_id] = asdict(FileData(
+            file_id=file_id,
+            file_name=file_name,
+            file_type="pdf",
+            file_path=pdf_path,
+            file_size=file_size,
+            update_time=update_time,
+        ))
+        new_count += 1
+
+    # Batch: save once
+    if new_count > 0:
+        save_json(doc_info, json_path)
+        logger.info("Registered {count} new PDF(s) in {dir}", count=new_count, dir=pdf_dir)
+
+    return new_count
+
 
 def delete_file(file_data: dict) -> None:
     """
-    Delete a file.    
-    
+    Delete a file.
+
     Args:
-        file_data (dict): Metadata dictionary containing:
-            - file_name
-            - file_type
-            - file_path
-            - file_id
-            - file_size
-            - update_time
-            - parsing_status
-            - batch_id (optional)
-            - DOI_state (optional)
-            - doi (optional)
+        file_data: File metadata. See `FileData` (src/core/states.py)
     """
     file_path = Path(file_data["file_path"])
     username, dataset_name = parse_path_info(file_data["file_path"])
-    base = Path("users") / username / dataset_name
+    file_id = file_data.get("file_id")
 
     # 1. delete file_data["file_path"]
     if file_path.exists():
         file_path.unlink()
     # 2. delete username/dataset_name/parse/file_data["file_id"]
-    file_id = file_data.get("file_id")
-    parse_dir = base / "parse" / file_id
-    if parse_dir.exists():
-        shutil.rmtree(parse_dir, ignore_errors=True)    
+    parse_folder = parse_dir(username, dataset_name, file_id)
+    if parse_folder.exists():
+        shutil.rmtree(parse_folder, ignore_errors=True)    
     # 3. delete username/dataset_name/data_clean/file_data["file_id"]
-    clean_dir = base / "data_clean" / file_id
-    if clean_dir.exists():
-        shutil.rmtree(clean_dir, ignore_errors=True)
+    clean_folder = clean_dir(username, dataset_name, file_id)
+    if clean_folder.exists():
+        shutil.rmtree(clean_folder, ignore_errors=True)
 
 def delete_none_dir(username: str, dataset_name: str) -> None:
     """
@@ -184,23 +187,25 @@ def delete_none_dir(username: str, dataset_name: str) -> None:
         username (str): The username of the user.
         dataset_name (str): The name of the dataset.
     """
-    base = Path("users") / username / dataset_name
     data_info = load_document_metadata(username, dataset_name)
+    logger = get_user_logger(username, dataset_name)
 
     # ---- parse ----
-    parse_base = base / "parse"
+    parse_base = parse_dir(username, dataset_name, "")
+    parse_base = parse_base.parent  # Get the parse directory itself
     if parse_base.exists():
         for folder in parse_base.iterdir():
             if folder.is_dir() and folder.name not in data_info:
-                print(f"[WARN] Orphan parse folder: {folder}")
+                logger.warning("Orphan parse folder: {folder}", folder=folder)
                 shutil.rmtree(folder, ignore_errors=True)
 
     # ---- data_clean ----
-    clean_base = base / "data_clean"
+    clean_base = clean_dir(username, dataset_name, "")
+    clean_base = clean_base.parent  # Get the data_clean directory itself
     if clean_base.exists():
         for folder in clean_base.iterdir():
             if folder.is_dir() and folder.name not in data_info:
-                print(f"[WARN] Orphan clean folder: {folder}")
+                logger.warning("Orphan clean folder: {folder}", folder=folder)
                 shutil.rmtree(folder, ignore_errors=True)
 
 
@@ -209,7 +214,10 @@ if __name__ == "__main__":
     dataset_name = "schwarz"
 
     print("Preparing PDF files for MinerU processing...")
-    pdf_files_data = load_Batch_PDF_files(username, dataset_name)
-    print(f"Prepared {len(pdf_files_data)} files for upload.")
-    for k, v in pdf_files_data.items():
+    new_count = register_new_pdfs(username, dataset_name)
+    print(f"Registered {new_count} new PDF(s).")
+
+    all_files = load_document_metadata(username, dataset_name)
+    print(f"Total files in dataset: {len(all_files)}")
+    for k, v in all_files.items():
         print(f"{k}: {v}")

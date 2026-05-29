@@ -1,6 +1,8 @@
 import json
 import re
 from pathlib import Path
+from src.core.logger import get_user_logger
+from src.core.paths import *
 
 
 class SectionNode:
@@ -66,14 +68,14 @@ def run_step1(username: str, dataset_name: str, file_id: str):
     Output:
     - None (Saves the output directly to '01_tree.json').
     """
-    current_dir = Path(__file__).resolve().parent
-    project_root = current_dir.parent.parent.parent
-    path = project_root / "users" / username / dataset_name / "data_clean" / file_id
+    md_path = clean_document_md(username, dataset_name, file_id)
+    tree_path = graph_tree_json(username, dataset_name, file_id)
 
-    with open(path / "document.md", "r", encoding="utf-8") as f:
+    with open(md_path, "r", encoding="utf-8") as f:
         tree_dict = parse_markdown_to_tree(f.read()).to_dict()
 
-    with open(path / "01_tree.json", "w", encoding="utf-8") as f:
+    ensure_parent_dir(tree_path)
+    with open(tree_path, "w", encoding="utf-8") as f:
         json.dump(tree_dict, f, ensure_ascii=False, indent=4)
 
-    print("[INFO] Step 1: Document tree parsed successfully.")
+    get_user_logger(username, dataset_name).success("Step 1: Document tree parsed successfully")

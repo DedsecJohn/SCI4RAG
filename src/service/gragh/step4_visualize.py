@@ -3,6 +3,8 @@ import colorsys
 import networkx as nx
 from pyvis.network import Network
 from pathlib import Path
+from src.core.logger import get_user_logger
+from src.core.paths import *
 
 
 def run_step4(username: str, dataset_name: str, file_id: str):
@@ -17,11 +19,11 @@ def run_step4(username: str, dataset_name: str, file_id: str):
     Output:
     - None (Saves the visualization to 'final_graph.html').
     """
-    current_dir = Path(__file__).resolve().parent
-    project_root = current_dir.parent.parent.parent
-    path = project_root / "users" / username / dataset_name / "data_clean" / file_id
+    logger = get_user_logger(username, dataset_name)
+    final_path = graph_final_json(username, dataset_name, file_id)
+    html_path = graph_final_json(username, dataset_name, file_id).parent / "final_graph.html"
 
-    with open(path / "03_final.json", "r", encoding="utf-8") as f:
+    with open(final_path, "r", encoding="utf-8") as f:
         triplets = json.load(f)
 
     G = nx.DiGraph()
@@ -60,6 +62,6 @@ def run_step4(username: str, dataset_name: str, file_id: str):
                            "strokeColor": "#ffffff"})
 
     net.force_atlas_2based(gravity=-70, central_gravity=0.015, spring_length=180, spring_strength=0.06)
-    net.write_html(str(path / "final_graph.html"))
+    net.write_html(str(html_path))
 
-    print("[INFO] Step 4: HTML graph visualization generated successfully.")
+    logger.success("Step 4: HTML graph visualization generated successfully")

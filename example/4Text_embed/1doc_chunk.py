@@ -1,3 +1,4 @@
+from src.core.paths import *
 from src.service.document.load_document import load_document_metadata
 from src.service.document.chunk_document import load_and_chunk_documents    
 
@@ -11,7 +12,7 @@ dataset_name = "test"
 pdf_files_data = load_document_metadata(username, dataset_name)
 
 pdf_files_sources = [
-    f"users/{username}/{dataset_name}/data_clean/{file_id}/document.md"
+    str(clean_document_md(username, dataset_name, file_id))
     for file_id, file_data in pdf_files_data.items()
     # if not file_data.get("vector_status")
 ]

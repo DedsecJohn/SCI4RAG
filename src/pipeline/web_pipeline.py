@@ -1,6 +1,7 @@
 from langchain_core.messages import HumanMessage, SystemMessage
+from src.core.logger import get_user_logger
 from src.llm.chat.api.chat_model import get_chat_model
-from src.service.retrieve.retrieve_web import web_prompt
+from src.service.web.retriever import web_prompt
 
 class WebPipeline:
     def __init__(
@@ -17,6 +18,7 @@ class WebPipeline:
         self.max_tokens = max_tokens
         self.username = username
         self.num_retrieved_web = num_retrieved_web
+        self.logger = get_user_logger(username, None)
 
         self.llm = get_chat_model(
             temperature=self.temperature,
@@ -24,6 +26,7 @@ class WebPipeline:
         )
     def build_messages(self, query: str):
         """Construct Web prompt messages."""
+        self.logger.debug("Web search for query: {query}", query=query[:80])
         rag_prompt = web_prompt(
             query,
             max_results=self.num_retrieved_web,
@@ -36,12 +39,14 @@ class WebPipeline:
 
     def query(self, query: str):
         """Non-streaming response."""
+        self.logger.info("Processing web query")
         messages = self.build_messages(query)
         response = self.llm.invoke(messages)
         return response.content
 
     def query_stream(self, query: str):
         """Streaming response."""
+        self.logger.info("Processing streaming web query")
         messages = self.build_messages(query)
         for chunk in self.llm.stream(messages):
             yield chunk.content

@@ -2,7 +2,8 @@ from tqdm import tqdm
 from typing import List
 from pathlib import Path
 from collections import defaultdict
-from src.service.document.load_document import load_json
+from src.core.paths import *
+from src.core.utils import load_json, save_json
 
 from evaluate.evaluator.f1_evaluator import F1Evaluator
 from evaluate.evaluator.rs_evaluator import RSEvaluator
@@ -18,9 +19,9 @@ EVALUATOR_NAME_MAP = {
     MEDEvaluator: "MED",
 }
 
-from src.pipline.simple_pipeline import SimplePipeline
-from src.pipline.rag_pipeline import RAGPipeline
-from src.pipline.web_pipeline import WebPipeline
+from src.pipeline.simple_pipeline import SimplePipeline
+from src.pipeline.rag_pipeline import RAGPipeline
+from src.pipeline.web_pipeline import WebPipeline
 
 PIPELINE_NAME_MAP = {
     SimplePipeline: "Simple",
@@ -56,7 +57,7 @@ def check_benchmark() -> List[str]:
     Returns:
         List[str]: List of benchmark dataset names (without suffix).
     """
-    benchmark_folder = Path("evaluate/benchmark")
+    benchmark_folder = evaluate_benchmark_dir()
 
     # 1. Check the benchmark folder
     if not benchmark_folder.exists():
@@ -90,8 +91,7 @@ def check_benchmark_exists(benchmark_name: str) -> str:
     Returns:
         
     """
-    benchmark_folder = Path("evaluate/benchmark")
-    benchmark_file = benchmark_folder / f"{benchmark_name}.json"
+    benchmark_file = evaluate_benchmark(benchmark_name)
     if benchmark_file.exists():
         return benchmark_file
     else:

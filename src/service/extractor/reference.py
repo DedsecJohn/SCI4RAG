@@ -2,8 +2,10 @@ import re
 from typing import List, Dict
 from tqdm import tqdm
 from pathlib import Path
-from src.service.extractor.doi import get_reference_info
-from src.service.document.load_document import load_json, save_json, parse_path_info, updata_document_metadata
+from src.core.paths import *
+from src.core.utils import load_json, save_json
+from src.service.doimeta.fetcher import get_reference_info
+from src.service.document.load_document import parse_path_info, updata_document_metadata
 def split_references(reference_text: str, characters: int = 20) -> List[Dict]:
     """
     Split a reference block into individual references.
@@ -103,13 +105,9 @@ def process_references(file_data: dict, reidentify = False) -> List[Dict]:
 
     username, dataset_name = parse_path_info(file_data["file_path"])
 
-    label_path = Path(
-        f"users/{username}/{dataset_name}/data_clean/{file_data['file_id']}/label_structure_cleaned.json"
-    )
+    label_path = clean_label_cleaned_json(username, dataset_name, file_data['file_id'])
 
-    references_path = Path(
-        f"users/{username}/{dataset_name}/data_clean/{file_data['file_id']}/references.json"
-    )
+    references_path = clean_references_json(username, dataset_name, file_data['file_id'])
 
     label_structure = load_json(label_path)
     raw_references: List[str] = []
@@ -145,3 +143,46 @@ def process_references(file_data: dict, reidentify = False) -> List[Dict]:
         file_data["reference_state"] = 'Not_Found'
         updata_document_metadata(username, dataset_name, file_data, info=False)
     return file_data
+
+
+REF_HEADER = re.compile(
+    r'^#\s*(?:references|bibliography)(?:\s+and\s+notes?)?\s*:?\s*$',
+    re.IGNORECASE
+)
+
+REF_ENTRY = re.compile(r'^(?:\[\d+\]|\(\d+\)|\d+\.)\s+')
+
+SECTION_HEADER = re.compile(r'^#\s+\w+')
+
+
+def identify_references(chunk: str) -> bool:
+    """
+    Check if a markdown chunk is a numbered reference entry.
+
+    Args:
+        chunk (str): Markdown chunk text.
+
+    Returns:
+        bool: True if chunk starts with [N], (N), or N. numbering.
+    """
+    return bool(REF_ENTRY.match(chunk))
+
+
+def has_multiple_references(chunk: str, min_count: int = 3) -> bool:
+    """
+    Check if chunk contains multiple reference entries.
+
+    Useful for detecting reference sections that have noise at the beginning
+    (e.g., email addresses, symbols) before the actual reference list.
+
+    Args:
+        chunk (str): Markdown chunk text.
+        min_count (int): Minimum number of reference entries to consider as references section.
+
+    Returns:
+        bool: True if chunk contains >= min_count reference entries in [N] format.
+    """
+    # Pattern: [N] at line start (after optional whitespace/symbols like *, †, ‡)
+    pattern = r'^\s*[\*†‡§¶#]*\s*\[\d+\]\s+'
+    matches = re.findall(pattern, chunk, re.MULTILINE)
+    return len(matches) >= min_count

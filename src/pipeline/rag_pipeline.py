@@ -1,7 +1,8 @@
 from langchain_core.messages import HumanMessage, SystemMessage
+from src.core.logger import get_user_logger
 from src.llm.chat.api.chat_model import get_chat_model
-from src.service.embed.vector_store import initialize_vector_store
-from src.service.retrieve.retrieve_vector import retrieve_prompt
+from src.service.vector.store import initialize_vector_store
+from src.service.vector.retriever import retrieve_prompt
 
 class RAGPipeline:
     def __init__(
@@ -20,6 +21,7 @@ class RAGPipeline:
         self.username = username
         self.dataset_name = dataset_name
         self.num_retrieved_docs = num_retrieved_docs
+        self.logger = get_user_logger(username, dataset_name)
 
         self.llm = get_chat_model(
             temperature=self.temperature,
@@ -33,6 +35,7 @@ class RAGPipeline:
 
     def build_messages(self, query: str):
         """Construct RAG prompt messages."""
+        self.logger.debug("Retrieving documents for query: {query}", query=query[:80])
         rag_prompt = retrieve_prompt(
             query,
             self.vector_store,
@@ -46,12 +49,14 @@ class RAGPipeline:
 
     def query(self, query: str):
         """Non-streaming response."""
+        self.logger.info("Processing query")
         messages = self.build_messages(query)
         response = self.llm.invoke(messages)
         return response.content
 
     def query_stream(self, query: str):
         """Streaming response."""
+        self.logger.info("Processing streaming query")
         messages = self.build_messages(query)
         for chunk in self.llm.stream(messages):
             yield chunk.content

@@ -1,7 +1,9 @@
 import re
 from pathlib import Path
+from src.core.paths import *
+from src.core.utils import load_json, save_json
 from src.llm.chat.response import llm_response
-from src.service.document.load_document import load_json, save_json, parse_path_info, updata_document_metadata
+from src.service.document.load_document import parse_path_info, updata_document_metadata
 
 def check_keywords(
         content: str, 
@@ -37,7 +39,7 @@ def check_keywords(
         query=content,
         system_prompt=system_prompt,
         temperature=temperature
-    ).strip().lower()
+    )["content"].strip().lower()
 
     if  response == "true":
         return True
@@ -57,14 +59,8 @@ def search_keywords(file_data: dict) -> dict:
     """
     username, dataset_name = parse_path_info(file_data["file_path"])
 
-    label_path = Path(
-        f"users/{username}/{dataset_name}/data_clean/"
-        f"{file_data['file_id']}/label_structure.json"
-    )
-    doi_path = Path(
-        f"users/{username}/{dataset_name}/data_clean/"
-        f"{file_data['file_id']}/doi.json"
-    )
+    label_path = clean_label_structure_json(username, dataset_name, file_data['file_id'])
+    doi_path = clean_doi_json(username, dataset_name, file_data['file_id'])
 
     label_structure = load_json(label_path)
     doi_info = load_json(doi_path)
@@ -123,15 +119,9 @@ def identify_keywords(file_data: dict) -> dict:
     """
     username, dataset_name = parse_path_info(file_data["file_path"])
 
-    doi_path = Path(
-        f"users/{username}/{dataset_name}/data_clean/"
-        f"{file_data['file_id']}/doi.json"
-    )
+    doi_path = clean_doi_json(username, dataset_name, file_data['file_id'])
 
-    label_path = Path(
-        f"users/{username}/{dataset_name}/data_clean)/"
-        f"{file_data['file_id']}/label_structure.json"
-    )
+    label_path = clean_label_structure_json(username, dataset_name, file_data['file_id'])
 
     letter_path = Path(
         f"users/{username}/{dataset_name}/data_clean/"

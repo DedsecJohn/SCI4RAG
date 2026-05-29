@@ -1,4 +1,6 @@
-from src.service.document.load_document import load_document_metadata, load_json
+from src.core.paths import *
+from src.core.utils import load_json
+from src.service.document.load_document import load_document_metadata
 from pathlib import Path
 import networkx as nx
 import os
@@ -31,7 +33,7 @@ def construct_kg_ref(username: str, dataset_name: str):
         return str(authors)
 
     for file_id in pdf_files_data:
-        doi_path = Path(f"users/{username}/{dataset_name}/data_clean/{file_id}/doi.json")
+        doi_path = clean_doi_json(username, dataset_name, file_id)
         if not doi_path.exists():
             continue
 
@@ -47,8 +49,8 @@ def construct_kg_ref(username: str, dataset_name: str):
     nodes_with_relations = set()
 
     for file_id in pdf_files_data:
-        doi_path = Path(f"users/{username}/{dataset_name}/data_clean/{file_id}/doi.json")
-        ref_path = Path(f"users/{username}/{dataset_name}/data_clean/{file_id}/references.json")
+        doi_path = clean_doi_json(username, dataset_name, file_id)
+        ref_path = clean_references_json(username, dataset_name, file_id)
 
         if not doi_path.exists() or not ref_path.exists():
             continue
@@ -120,12 +122,12 @@ def construct_kg_ref(username: str, dataset_name: str):
     }
 
     G = kg_to_networkx(kg)
-    path = f"users/{username}/{dataset_name}/graph"
-    os.makedirs(path, exist_ok=True)  # create folder if it doesn't exist
+    path = graph_dir(username, dataset_name)
+    ensure_dir(path)
 
     nx.write_gexf(
         G,
-        f"{path}/citation_graph.gexf"
+        str(path / "citation_graph.gexf")
     )
     return kg
 
@@ -134,9 +136,11 @@ if __name__ == "__main__":
     username = "administrator"
     dataset_name = "test"
 
-    print("Preparing PDF files for MinerU processing...")
+    from src.core.logger import get_user_logger
+    logger = get_user_logger(username, dataset_name)
+    logger.info("Constructing reference knowledge graph")
     kg = construct_kg_ref(username, dataset_name)
-    print(kg )
+    logger.success("Knowledge graph constructed: {nodes} nodes, {edges} edges", nodes=len(kg.get("nodes", {})), edges=len(kg.get("edges", [])))
 
 
 

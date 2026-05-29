@@ -6,6 +6,8 @@ from pydantic import BaseModel, Field
 from langchain_openai import ChatOpenAI
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
+from src.core.logger import get_user_logger
+from src.core.paths import *
 
 
 def clean_entity(text: str) -> str:
@@ -62,11 +64,11 @@ def run_step3(username: str, dataset_name: str, file_id: str, api_key: str):
     Output:
     - None (Saves the aligned and enriched triplets to '03_final.json').
     """
-    current_dir = Path(__file__).resolve().parent
-    project_root = current_dir.parent.parent.parent
-    path = project_root / "users" / username / dataset_name / "data_clean" / file_id
+    logger = get_user_logger(username, dataset_name)
+    raw_path = graph_raw_json(username, dataset_name, file_id)
+    final_path = graph_final_json(username, dataset_name, file_id)
 
-    with open(path / "02_raw.json", "r", encoding="utf-8") as f:
+    with open(raw_path, "r", encoding="utf-8") as f:
         raw_triplets = json.load(f)
 
     pre_cleaned = []
@@ -78,7 +80,7 @@ def run_step3(username: str, dataset_name: str, file_id: str, api_key: str):
             pre_cleaned.append({"source": src, "target": tgt, "relation": rel})
 
     unique_entities = list(set([t["source"] for t in pre_cleaned] + [t["target"] for t in pre_cleaned]))
-    print(f"[INFO] Aligning {len(unique_entities)} unique entities...")
+    logger.info("Aligning {count} unique entities", count=len(unique_entities))
 
     llm = ChatOpenAI(temperature=0.0, model="deepseek-chat", api_key=api_key, base_url="https://api.deepseek.com")
     parser = JsonOutputParser(pydantic_object=EntityMapping)
@@ -133,7 +135,8 @@ def run_step3(username: str, dataset_name: str, file_id: str, api_key: str):
         if clean_entity(s) in nodes_in_graph and clean_entity(t) in nodes_in_graph:
             final_triplets.append({"source": clean_entity(s), "target": clean_entity(t), "relation": r})
 
-    with open(path / "03_final.json", "w", encoding="utf-8") as f:
+    ensure_parent_dir(final_path)
+    with open(final_path, "w", encoding="utf-8") as f:
         json.dump(final_triplets, f, ensure_ascii=False, indent=4)
 
-    print("[INFO] Step 3: Entity alignment and link prediction complete.")
+    logger.success("Step 3: Entity alignment and link prediction complete")

@@ -1,13 +1,55 @@
 import re
 from pathlib import Path
+from src.core.paths import *
+from src.core.utils import load_json, save_json
 from src.llm.chat.response import llm_response
-from src.service.document.load_document import load_json, save_json, parse_path_info, updata_document_metadata
+from src.service.document.load_document import parse_path_info, updata_document_metadata
 
 FIG_PATTERN = re.compile(
     r'^(fig|figure)\s*\.?\s*\d+\b',
     re.IGNORECASE
 )
 IMG_PATTERN = re.compile(r'!\[\]\((.*?)\)')
+
+
+def identify_figure(chunk: str, prev_chunk: str = None, next_chunk: str = None) -> bool:
+    """
+    Check if a markdown chunk is a figure or figure caption.
+
+    Uses content patterns and positional context (previous/next chunk)
+    to determine if the chunk is a figure image or caption.
+
+    Args:
+        chunk (str): Markdown chunk text.
+        prev_chunk (str): Previous chunk content for positional context.
+        next_chunk (str): Next chunk content for positional context.
+
+    Returns:
+        bool: True if the chunk is identified as a figure.
+    """
+    # Pure image link
+    if re.match(r'^\s*!\[\]\(images/[^)]+\)\s*$', chunk):
+        return True
+
+    # Image + text in same chunk
+    if '![](images/' in chunk:
+        if len(chunk) < 150:
+            return True
+        if re.search(r'(?i)(fig\.|figure)\s+\d+', chunk):
+            return True
+
+    # Previous chunk is image + current starts with Fig. N. format
+    if prev_chunk and '![](images/' in prev_chunk:
+        if re.match(r'(?i)^\s*(fig\.|figure)\s+\d+[\.:]\s+', chunk) and len(chunk) < 1000:
+            return True
+        if re.match(r'(?i)^\s*(fig\.|figure)\s+\d+[\.:]\s+', chunk):
+            has_subfigs = len(re.findall(r'\([a-hA-H]\)', chunk)) >= 2
+            if has_subfigs:
+                return True
+        if re.match(r'^\s*[\(（][a-zA-Z][\)）]\s*', chunk):
+            return True
+
+    return False
 
 def parse_figure_block(content: str, base_dir: str) -> list[dict]:
     """
@@ -86,13 +128,9 @@ def process_figures(file_data: dict, reidentify = False)->dict:
 
     base_path = f"users/{username}/{dataset_name}/parse/{file_data['file_id']}"
 
-    label_path = Path(
-        f"users/{username}/{dataset_name}/data_clean/{file_data['file_id']}/label_structure_cleaned.json"
-    )
+    label_path = clean_label_cleaned_json(username, dataset_name, file_data['file_id'])
 
-    figures_path = Path(
-        f"users/{username}/{dataset_name}/data_clean/{file_data['file_id']}/figures.json"
-    )
+    figures_path = clean_figures_json(username, dataset_name, file_data['file_id'])
 
     label_structure = load_json(label_path)
 

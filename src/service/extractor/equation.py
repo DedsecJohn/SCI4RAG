@@ -1,8 +1,32 @@
 import re
 from tqdm import tqdm
 from pathlib import Path
+from src.core.paths import *
+from src.core.utils import load_json, save_json
 from src.llm.chat.response import llm_response
-from src.service.document.load_document import load_json, save_json, parse_path_info, updata_document_metadata
+from src.service.document.load_document import parse_path_info, updata_document_metadata
+
+
+def identify_equation(chunk: str) -> bool:
+    """
+    Check if a markdown chunk is a standalone equation block.
+
+    Args:
+        chunk (str): Markdown chunk text.
+
+    Returns:
+        bool: True if the chunk is identified as an equation.
+    """
+    # Display math block: $$...$$
+    if re.match(r'^\s*\$\$.*\$\$\s*$', chunk, re.DOTALL):
+        return True
+    
+    # Inline math only (no other text, at least 10 chars)
+    if re.match(r'^\s*\$[^\$]{10,}\$\s*$', chunk):
+        return True
+    
+    return False
+
 
 def generate_equation_description(
     equation: str,
@@ -44,7 +68,7 @@ def generate_equation_description(
         query=equation,
         system_prompt=system_prompt,
         temperature=temperature
-    ).strip()
+    )["content"].strip()
 
     if response.lower() == "not clear" or  response.lower() == "not clear." or len(response.strip().split()) < 5:
         return None
@@ -54,29 +78,16 @@ def generate_equation_description(
         "description": response
     }
     
-def identify_equation(
+def process_equations(
     file_data: dict,
     temperature: float = 0.8,
     reidentify: bool = False
 ) -> dict:
     """
-    Identify equations and generate equation–description pairs.
+    Process equations and generate equation–description pairs.
 
     Args:
-        file_data (dict): Metadata dictionary containing:
-            - file_name
-            - file_type
-            - file_path
-            - file_id
-            - file_size
-            - update_time
-            - parsing_status
-            - batch_id (optional)
-            - DOI_state (optional)
-            - doi (optional)
-            - clean_state (optional)
-            - equation_state (optional)
-
+        file_data: File metadata. See `FileData` (src/core/states.py)
         temperature (float): LLM temperature. Defaults to 0.8.
 
     Returns:
@@ -91,14 +102,8 @@ def identify_equation(
 
     username, dataset_name = parse_path_info(file_data["file_path"])
 
-    label_path = Path(
-        f"users/{username}/{dataset_name}/data_clean/"
-        f"{file_data['file_id']}/label_structure_cleaned.json"
-    )
-    equation_path = Path(
-        f"users/{username}/{dataset_name}/data_clean/"
-        f"{file_data['file_id']}/equation.json"
-    )
+    label_path = clean_label_cleaned_json(username, dataset_name, file_data['file_id'])
+    equation_path = clean_equation_json(username, dataset_name, file_data['file_id'])
 
     label_structure = load_json(label_path)
     equation_pairs = []

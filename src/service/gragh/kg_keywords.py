@@ -31,7 +31,7 @@ def generate_keyword_kg_article(
         query=equation,
         system_prompt=system_prompt,
         temperature=temperature
-    ).strip()
+    )["content"].strip()
 
     if response.lower() == "not clear" or  response.lower() == "not clear." or len(response.strip().split()) < 5:
         return None

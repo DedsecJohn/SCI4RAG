@@ -15,7 +15,10 @@ DATASET = "test"
 FILE_ID = "20260206T140845_24126d3a8c"
 
 if __name__ == "__main__":
-    print("[INFO] Starting SCI4RAG Knowledge Graph Pipeline...\n" + "-" * 50)
+    from src.core.logger import get_user_logger
+
+    logger = get_user_logger(USERNAME, DATASET)
+    logger.info("Starting SCI4RAG Knowledge Graph Pipeline")
 
     # Execute pipeline steps sequentially
     run_step1(USERNAME, DATASET, FILE_ID)
@@ -23,4 +26,4 @@ if __name__ == "__main__":
     run_step3(USERNAME, DATASET, FILE_ID, DEEPSEEK_API_KEY)
     run_step4(USERNAME, DATASET, FILE_ID)
 
-    print("-" * 50 + "\n[INFO] Pipeline execution completed. Please open final_graph.html to view the graph.")
+    logger.success("Pipeline execution completed. Open final_graph.html to view the graph")
