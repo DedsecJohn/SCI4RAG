@@ -4,8 +4,10 @@ from tqdm import tqdm
 from pathlib import Path
 from src.core.paths import *
 from src.core.utils import load_json, save_json
-from src.service.doimeta.fetcher import get_title_info
+from src.service.doimeta.fetcher import get_reference_info
 from src.service.document.load_document import parse_path_info, update_document_metadata
+
+
 def split_references(reference_text: str, characters: int = 20) -> List[str]:
     """
     Split a reference block into individual references.
@@ -84,7 +86,7 @@ def split_references(reference_text: str, characters: int = 20) -> List[str]:
     return references
 
 
-def process_references(file_data: dict, reidentify = False) -> dict:
+def process_references(file_data: dict, reidentify = True) -> dict:
     """
     Process references for a given file.
 
@@ -128,7 +130,7 @@ def process_references(file_data: dict, reidentify = False) -> dict:
         bar_format="{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}, {rate_fmt}]"
     ) as pbar:
         for ref in raw_references:
-            ref_info = get_title_info(ref)
+            ref_info = get_reference_info(ref)
             # doi = ref_info.get("doi", ref)  # fallback to raw ref if DOI missing
             processed_references[ref] = ref_info
             pbar.update(1)

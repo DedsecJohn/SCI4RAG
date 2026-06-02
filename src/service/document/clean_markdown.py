@@ -434,7 +434,7 @@ def combine_label_structure(file_data: dict) -> dict:
     return file_data
 
 
-def combile_doc_json(file_data: dict) -> dict:
+def clean_document(file_data: dict) -> dict:
     """
     Generate cleaned document.md (placeholder for Phase 2).
 
@@ -444,4 +444,39 @@ def combile_doc_json(file_data: dict) -> dict:
     Returns:
         dict: Updated file_data.
     """
+    username, dataset_name = parse_path_info(file_data["file_path"])
+    logger = get_user_logger(username, dataset_name)
+    # doc_json_path = clean_dir(username, dataset_name, file_data["file_id"]) / "main_letter.json"
+    label_path = clean_label_cleaned_json(username, dataset_name, file_data["file_id"])
+    doi_path = clean_doi_json(username, dataset_name, file_data["file_id"])
+    md_path = clean_document_md(username, dataset_name, file_data["file_id"])
+
+    if not label_path.exists() or not doi_path.exists():
+        logger.warning("Missing clean files for {file_id}", file_id=file_data['file_id'])
+        return file_data
+
+    label_info = load_json(label_path)
+    doi_info = load_json(doi_path)
+
+    # ---------- build markdown ----------
+    md_content = f"## {doi_info.get('title', '')}\n\n"
+
+    for idx, chunk in enumerate(label_info):
+        category = chunk.get("category")
+        content = chunk.get("content", "")
+
+        if not content:
+            continue
+
+        if category == "main_letter" or category == "equation":
+            if content[0] == "#":
+                md_content += "##" + content + "\n\n"
+            else:
+                md_content += content + "\n\n"
+
+    # ---------- save md ----------
+    with open(md_path, "w", encoding="utf-8") as f:
+        f.write(md_content)
+    logger.success("Save markdown to: {path}", path=md_path)
+
     return file_data

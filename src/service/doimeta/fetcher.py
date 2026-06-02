@@ -305,7 +305,7 @@ def extract_abstract(data: dict, doi: str) -> Optional[str]:
         return abstract
 
     # Fallback: Semantic Scholar
-    get_logger().info("Abstract not found in CrossRef, trying Semantic Scholar for DOI: {doi}", doi=doi)
+    # get_logger().info("Abstract not found in CrossRef, trying Semantic Scholar for DOI: {doi}", doi=doi)
     return fetch_abstract_from_semantic_scholar(doi)
 
 
@@ -455,6 +455,43 @@ def get_title_info(title: str) -> Optional[dict]:
     
     bibjson = to_custom_bibjson(raw, doi)
     return bibjson
+
+
+def get_reference_info(title: str) -> Optional[dict]:
+    """
+    Get article metadata from title string (without abstract).
+    Uses CrossRef only; does NOT call Semantic Scholar for abstract.
+
+    Args:
+        title (str): Title string to search for.
+
+    Returns:
+        Optional[dict]: Article metadata (title, author, journal, doi, url,
+            year, volume, number, pages, bibkey) or None if not found.
+    """
+    time.sleep(0.5)
+    raw = query_crossref(title)
+    if raw is None:
+        get_logger().warning("Title not found in CrossRef: {title}", title=title[:100])
+        return None
+
+    doi = raw.get("DOI")
+    if not doi:
+        get_logger().warning("No DOI found in CrossRef result for title: {title}", title=title[:100])
+        return None
+
+    return {
+        "title": (raw.get("title") or [None])[0],
+        "author": extract_author(raw),
+        "journal": extract_journal(raw),
+        "doi": raw.get("DOI"),
+        "url": raw.get("URL"),
+        "year": extract_year(raw),
+        "volume": extract_volume(raw),
+        "number": extract_issue(raw),
+        "pages": extract_pages(raw),
+        "bibkey": make_citation_key(raw),
+    }
 
 
 def fetch_DOI_metadata(file_data: dict) -> dict:
