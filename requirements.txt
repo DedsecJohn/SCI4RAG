@@ -10,3 +10,10 @@ google-search-results==2.4.2
 python-dotenv==0.21.0
 loguru==0.7.3
 pyvis==0.3.2
+# Citation feature engineering (src/service/gragh/citation)
+scipy==1.15.3
+pandas==2.3.3
+pyarrow==24.0.0
+scikit-learn==1.7.2
+sentence-transformers==5.5.1
+# yake==0.7.3  # optional: only needed if re-enabling keyword extraction (removed feature)

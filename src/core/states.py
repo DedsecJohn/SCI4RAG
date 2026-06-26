@@ -57,6 +57,7 @@ class FileData:
     # ── Detail extraction (equations, references, figures) ─────────
     equation_state: Optional[str] = None            # ExtractStatus
     reference_state: Optional[str] = None           # ExtractStatus
+    citation_state: Optional[str] = None            # ExtractStatus: in-text citations
     figure_state: Optional[str] = None              # ExtractStatus
 
     # ── Vectorization ──────────────────────────────────────────────

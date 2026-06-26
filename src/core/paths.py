@@ -141,6 +141,16 @@ def clean_references_json(username: str, dataset_name: str, file_id: str) -> Pat
     return clean_dir(username, dataset_name, file_id) / "references.json"
 
 
+def clean_citation_json(username: str, dataset_name: str, file_id: str) -> Path:
+    """Get the path to citation.json containing extracted in-text citations."""
+    return clean_dir(username, dataset_name, file_id) / "citation.json"
+
+
+def clean_citation_by_article_json(username: str, dataset_name: str, file_id: str) -> Path:
+    """Get the path to citation_by_article.json (citations grouped per cited article)."""
+    return clean_dir(username, dataset_name, file_id) / "citation_by_article.json"
+
+
 def clean_figures_json(username: str, dataset_name: str, file_id: str) -> Path:
     """Get the path to figures.json containing figure information."""
     return clean_dir(username, dataset_name, file_id) / "figures.json"
@@ -202,6 +212,65 @@ def graph_final_json(username: str, dataset_name: str) -> Path:
 def graph_citation_gexf(username: str, dataset_name: str) -> Path:
     """Get the path to citation_graph.gexf."""
     return graph_dir(username, dataset_name) / "citation_graph.gexf"
+
+
+def graph_citation_relations_json(username: str, dataset_name: str) -> Path:
+    """Get the path to citation_relations.json (edge relation classification)."""
+    return graph_dir(username, dataset_name) / "citation_relations.json"
+
+
+def graph_citation_edgelist_csv(username: str, dataset_name: str) -> Path:
+    """Get the path to citation_edgelist.csv (directed edges with labels)."""
+    return graph_dir(username, dataset_name) / "citation_edgelist.csv"
+
+
+def graph_citation_relations_final_json(username: str, dataset_name: str) -> Path:
+    """Get the path to citation_relations_final.json (Stage-2 adjudicated edges)."""
+    return graph_dir(username, dataset_name) / "citation_relations_final.json"
+
+
+def graph_citation_edgelist_final_csv(username: str, dataset_name: str) -> Path:
+    """Get the path to citation_edgelist_final.csv (Stage-2 directed edges with labels)."""
+    return graph_dir(username, dataset_name) / "citation_edgelist_final.csv"
+
+
+def graph_citation_graph_final_gexf(username: str, dataset_name: str) -> Path:
+    """Get the path to citation_graph_final.gexf (Stage-2 classified graph)."""
+    return graph_dir(username, dataset_name) / "citation_graph_final.gexf"
+
+
+# ============================================================================
+# Citation Features - Edge/node feature engineering products
+# ============================================================================
+
+def citation_features_dir(username: str, dataset_name: str) -> Path:
+    """Get the directory for citation feature engineering products."""
+    return user_base(username, dataset_name) / "citation-features"
+
+
+def citation_edge_features(username: str, dataset_name: str) -> Path:
+    """Get the path to edge_features.parquet (one row per candidate pair)."""
+    return citation_features_dir(username, dataset_name) / "edge_features.parquet"
+
+
+def citation_node_features(username: str, dataset_name: str) -> Path:
+    """Get the path to node_features.parquet (one row per local paper)."""
+    return citation_features_dir(username, dataset_name) / "node_features.parquet"
+
+
+def citation_title_embeddings_npy(username: str, dataset_name: str) -> Path:
+    """Get the path to title_embeddings.npy (cached title embedding vectors)."""
+    return citation_features_dir(username, dataset_name) / "title_embeddings.npy"
+
+
+def citation_abstract_embeddings_npy(username: str, dataset_name: str) -> Path:
+    """Get the path to abstract_embeddings.npy (cached abstract embedding vectors)."""
+    return citation_features_dir(username, dataset_name) / "abstract_embeddings.npy"
+
+
+def citation_feature_report(username: str, dataset_name: str) -> Path:
+    """Get the path to feature_report.json (coverage + correlation diagnostics)."""
+    return citation_features_dir(username, dataset_name) / "feature_report.json"
 
 
 # ============================================================================

@@ -18,6 +18,6 @@ for file_id, file_data in pdf_files_data.items():
 # for file_id, file_data in pdf_files_data.items():
 #     mineru_parse(file_data)
 
-# # 3.Check parsing status (optional)
+# 3.Check parsing status (optional)
 # for file_id, file_data in pdf_files_data.items():
 #     mineru_state(file_data)
