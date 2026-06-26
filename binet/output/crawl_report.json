@@ -1,0 +1,24 @@
+{
+  "status": "max_papers_reached",
+  "total_nodes": 10000,
+  "total_edges": 13721,
+  "seed_count": 5,
+  "failed_count": 0,
+  "dropped_edges_no_doi": 169,
+  "source_hits": {
+    "openalex": 49
+  },
+  "depth_distribution": {
+    "0": 5,
+    "1": 4214,
+    "2": 5781
+  },
+  "avg_seed_in_corpus_in_degree": 836.8,
+  "seed_in_corpus_in_degree": {
+    "10.1126/science.aal5166": 866,
+    "10.1021/acs.nanolett.5c02044": 1,
+    "10.1016/j.actamat.2024.120007": 13,
+    "10.1126/science.1092905": 3272,
+    "10.1103/physrevlett.127.136101": 32
+  }
+}
